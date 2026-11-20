@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mycelium // Semantic Idea Colony</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b100e;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    #colonyCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #colonyCanvas:active {
+      cursor: grabbing;
+    }
+
+    /* Custom Range Slider for Root Sensitivity */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #087A55 0%, #10b981 55%, #A88942 100%);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ecfdf5;
+      border: 2px solid #10b981;
+      margin-top: -5px;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #087A55 0%, #10b981 55%, #A88942 100%);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ecfdf5;
+      border: 2px solid #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+    }
+
+    /* Subtle custom scrollbar for inspector */
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(16, 22, 20, 0.4);
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.35);
+      border-radius: 999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.6);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(16, 185, 129, 0.18); }
+      50% { box-shadow: 0 0 28px rgba(16, 185, 129, 0.34); }
+    }
+
+    .hud-panel {
+      background: rgba(16, 22, 20, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(16, 185, 129, 0.22);
+    }
+
+    .capture-bar {
+      animation: pulseGlow 4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Interactive Bioluminescent Canvas -->
+  <canvas id="colonyCanvas"></canvas>
+
+  <!-- Minimal Top-Left Brand & Colony Counter -->
+  <header class="fixed top-3 left-3 sm:top-4 sm:left-4 z-20 pointer-events-none">
+    <div class="hud-panel pointer-events-auto rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl bg-emerald-950/90 border border-emerald-500/40 flex items-center justify-center shadow-inner shrink-0">
+        <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="2.5" />
+          <circle cx="5" cy="18" r="2.5" />
+          <circle cx="19" cy="18" r="2.5" />
+          <path d="M12 7.5C12 12 6 12 5 15.5" stroke-linecap="round" />
+          <path d="M12 7.5C12 12 18 12 19 15.5" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm sm:text-base font-bold tracking-tight text-emerald-50 leading-none">
+          Mycelium <span class="text-emerald-400 font-mono-code font-normal text-xs">// Colony</span>
+        </h1>
+        <p id="colonyStats" class="text-[11px] text-emerald-300/75 font-mono-code mt-1">
+          0 thoughts · 0 roots · 0 hubs
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top-Right Settings Dropdown Container -->
+  <div id="settingsContainer" class="fixed top-3 right-3 sm:top-4 sm:right-4 z-30 flex flex-col items-end">
+    <button
+      id="settingsToggleBtn"
+      type="button"
+      aria-expanded="false"
+      aria-haspopup="true"
+      class="hud-panel hover:border-emerald-400/50 active:scale-[0.98] rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center gap-2 text-xs sm:text-sm font-medium text-emerald-50 transition"
+    >
+      <svg id="settingsGearIcon" class="w-4 h-4 text-emerald-400 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+      <span>Settings</span>
+    </button>
+
+    <!-- Collapsible Settings Dropdown Panel -->
+    <div
+      id="settingsDropdown"
+      class="hidden mt-2 w-[calc(100vw-1.5rem)] max-w-xs sm:w-80 hud-panel rounded-2xl p-4 shadow-2xl border border-emerald-500/30 space-y-4 transition-all"
+    >
+      <!-- Search / Highlight Filter -->
+      <div>
+        <label for="searchInput" class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-300/80 mb-1.5">
+          Filter Thoughts
+        </label>
+        <div class="relative">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Highlight matching ideas..."
+            class="w-full bg-black/45 border border-emerald-500/25 focus:border-emerald-400/70 rounded-xl pl-8 pr-7 py-2 text-xs text-emerald-50 placeholder-slate-400 outline-none transition"
+          />
+          <svg class="w-3.5 h-3.5 text-emerald-400/70 absolute left-2.5 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" stroke-linecap="round" />
+          </svg>
+          <button
+            id="clearSearchBtn"
+            type="button"
+            class="hidden absolute right-2 top-2 text-slate-400 hover:text-emerald-300 text-xs px-1"
+            title="Clear filter"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Root Sensitivity Slider -->
+      <div class="bg-black/35 border border-emerald-500/20 rounded-xl p-3">
+        <div class="flex items-center justify-between text-xs mb-2">
+          <span class="text-slate-200 font-medium">Root Sensitivity</span>
+          <span id="thresholdLabel" class="font-mono-code text-amber-400 font-semibold">20%</span>
+        </div>
+        <input id="thresholdSlider" type="range" min="10" max="65" value="20" class="w-full" />
+        <div class="flex justify-between text-[10px] text-slate-400 mt-1.5">
+          <span>Dense Web (8 roots)</span>
+          <span>Strict Match</span>
+        </div>
+      </div>
+
+      <!-- Background Color Customizer -->
+      <div class="bg-black/35 border border-emerald-500/20 rounded-xl p-3">
+        <div class="flex items-center justify-between text-xs mb-2.5">
+          <span class="text-slate-200 font-medium">Background Canvas</span>
+          <span id="bgColorHexLabel" class="font-mono-code text-[11px] text-emerald-300 uppercase">#0B100E</span>
+        </div>
+
+        <div class="flex items-center justify-between gap-2">
+          <!-- Preset Swatches -->
+          <div id="bgSwatches" class="flex items-center gap-2">
+            <button
+              type="button"
+              data-bg="#101614"
+              title="Obsidian Charcoal"
+              class="bg-swatch w-6 h-6 rounded-full border-2 border-white/25 hover:scale-110 transition shadow-inner"
+              style="background-color: #101614;"
+            ></button>
+            <button
+              type="button"
+              data-bg="#032F25"
+              title="Deep Forest"
+              class="bg-swatch w-6 h-6 rounded-full border-2 border-white/25 hover:scale-110 transition shadow-inner"
+              style="background-color: #032F25;"
+            ></button>
+            <button
+              type="button"
+              data-bg="#0A0B10"
+              title="Midnight Void"
+              class="bg-swatch w-6 h-6 rounded-full border-2 border-white/25 hover:scale-110 transition shadow-inner"
+              style="background-color: #0A0B10;"
+            ></button>
+            <button
+              type="button"
+              data-bg="#14110F"
+              title="Warm Espresso"
+              class="bg-swatch w-6 h-6 rounded-full border-2 border-white/25 hover:scale-110 transition shadow-inner"
+              style="background-color: #14110F;"
+            ></button>
+            <button
+              type="button"
+              data-bg="#111827"
+              title="Slate Night"
+              class="bg-swatch w-6 h-6 rounded-full border-2 border-white/25 hover:scale-110 transition shadow-inner"
+              style="background-color: #111827;"
+            ></button>
+          </div>
+
+          <!-- Full Custom HTML Color Input -->
+          <label
+            title="Pick custom background color"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/70 border border-emerald-500/30 text-[11px] text-emerald-200 cursor-pointer transition shrink-0"
+          >
+            <span>Custom</span>
+            <input
+              id="bgColorPicker"
+              type="color"
+              value="#0b100e"
+              class="w-4 h-4 rounded cursor-pointer bg-transparent border-0 p-0"
+            />
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node Inspector Drawer (Positioned cleanly below top-right Settings button) -->
+  <section
+    id="inspectorDrawer"
+    class="hidden fixed top-16 sm:top-[4.5rem] right-3 sm:right-4 z-20 w-[calc(100vw-1.5rem)] max-w-xs sm:max-w-sm hud-panel rounded-2xl p-4 shadow-2xl border border-amber-500/30 transition-all"
+  >
+    <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-emerald-500/15">
+      <div>
+        <div class="flex items-center gap-2">
+          <span id="inspectorThemeBadge" class="px-2 py-0.5 rounded-full text-[10px] font-mono-code uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+            Cluster
+          </span>
+          <span id="inspectorRoleBadge" class="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            Node
+          </span>
+        </div>
+        <p id="inspectorTimestamp" class="text-[11px] text-slate-400 font-mono-code mt-1.5"></p>
+      </div>
+      <button
+        id="closeInspectorBtn"
+        type="button"
+        class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white text-xs transition"
+        title="Close inspector"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="mt-3">
+      <p id="inspectorText" class="text-sm text-emerald-50 leading-relaxed font-medium bg-black/45 p-3 rounded-xl border border-emerald-500/15"></p>
+    </div>
+
+    <div class="mt-3">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400/90">
+          Connected Roots (<span id="inspectorConnCount">0</span>)
+        </span>
+        <button
+          id="deleteNodeBtn"
+          type="button"
+          class="text-[11px] text-rose-400 hover:text-rose-300 underline underline-offset-2 transition"
+        >
+          Prune Thought
+        </button>
+      </div>
+      <div id="inspectorConnections" class="max-h-44 overflow-y-auto custom-scroll space-y-1.5 pr-1"></div>
+    </div>
+  </section>
+
+  <!-- Toast / Status Notification Banner -->
+  <div
+    id="toastBanner"
+    class="pointer-events-none fixed top-16 sm:top-4 left-1/2 -translate-x-1/2 z-30 opacity-0 transition-opacity duration-300"
+  >
+    <div id="toastText" class="px-4 py-2 rounded-full hud-panel border border-emerald-400/40 text-xs font-medium text-emerald-200 shadow-xl"></div>
+  </div>
+
+  <!-- Floating Bottom Thought-Capture Bar -->
+  <form
+    id="ideaForm"
+    class="fixed bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 w-[calc(100vw-1.5rem)] max-w-2xl"
+  >
+    <div class="hud-panel capture-bar rounded-2xl p-2 sm:p-2.5 flex items-center gap-2 border border-emerald-400/35 shadow-2xl">
+      <div class="hidden sm:flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+        </svg>
+      </div>
+      <input
+        id="ideaInput"
+        type="text"
+        autocomplete="off"
+        placeholder="Drop a random thought, idea, or note... (e.g. 'baking crusty sourdough loaves')"
+        class="flex-1 bg-transparent text-xs sm:text-sm text-emerald-50 placeholder-slate-400 px-2 py-2 outline-none"
+      />
+      <button
+        type="submit"
+        class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold shadow-lg shadow-emerald-950/60 transition shrink-0"
+      >
+        Plant Idea
+      </button>
+    </div>
+  </form>
+
+  <script>
+    /**
+     * MYCELIUM // SEMANTIC IDEA COLONY
+     * Self-contained client-side semantic knowledge graph & organic force-directed canvas.
+     */
+
+    const STORAGE_KEY = 'mycelium_idea_colony_v2';
+
+    // ---------------------------------------------------------------------------
+    // 1. CLIENT-SIDE SEMANTIC SIMILARITY ENGINE (TF-IDF + STEMMING + DOMAIN CONCEPTS)
+    // ---------------------------------------------------------------------------
+
+    const STOPWORDS = new Set([
+      'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'else', 'when', 'at', 'by', 'for',
+      'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after',
+      'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under',
+      'again', 'further', 'once', 'here', 'there', 'where', 'why', 'how', 'all', 'any', 'both',
+      'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+      'same', 'so', 'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now', 'is', 'am',
+      'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does',
+      'did', 'doing', 'would', 'could', 'ought', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours',
+      'you', 'your', 'yours', 'he', 'him', 'his', 'she', 'her', 'hers', 'it', 'its', 'they',
+      'them', 'their', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'like',
+      'need', 'want', 'make', 'making', 'get', 'getting', 'use', 'using', 'thing', 'things', 'idea'
+    ]);
+
+    const CONCEPT_DOMAINS = {
+      culinary_baking: {
+        label: 'Culinary & Fermentation',
+        color: '#f59e0b',
+        terms: [
+          'bread', 'sourdough', 'yeast', 'bake', 'baking', 'dough', 'flour', 'ferment', 'fermentation',
+          'starter', 'oven', 'crust', 'loaf', 'loaves', 'recipe', 'cook', 'cooking', 'kitchen', 'coffee',
+          'espresso', 'roast', 'brew', 'salt', 'hydration', 'crumb', 'pastry', 'food', 'meal', 'spice'
+        ]
+      },
+      sleep_circadian: {
+        label: 'Sleep & Vitality',
+        color: '#38bdf8',
+        terms: [
+          'sleep', 'insomnia', 'rest', 'tired', 'fatigue', 'circadian', 'melatonin', 'night', 'bed',
+          'wake', 'morning', 'screen', 'blue', 'light', 'glare', 'dream', 'nap', 'recovery', 'health',
+          'energy', 'meditation', 'stress', 'calm', 'breathing', 'caffeine', 'hours', 'routine'
+        ]
+      },
+      ai_software: {
+        label: 'AI & Systems',
+        color: '#10b981',
+        terms: [
+          'ai', 'model', 'vector', 'embedding', 'graph', 'network', 'neural', 'code', 'coding',
+          'algorithm', 'data', 'database', 'search', 'semantic', 'agent', 'llm', 'prompt', 'app',
+          'software', 'web', 'javascript', 'python', 'api', 'memory', 'brain', 'knowledge', 'automation'
+        ]
+      },
+      design_architecture: {
+        label: 'Design & Spatial',
+        color: '#a78bfa',
+        terms: [
+          'design', 'ui', 'ux', 'interface', 'visual', 'color', 'dark', 'typography', 'layout',
+          'architecture', 'minimal', 'organic', 'bioluminescent', 'space', 'aesthetic', 'canvas',
+          'animation', 'motion', 'sketch', 'wireframe', 'craft', 'experience', 'glass', 'lighting'
+        ]
+      },
+      aerodynamics_engineering: {
+        label: 'Motion & Engineering',
+        color: '#fb7185',
+        terms: [
+          'car', 'engine', 'aero', 'aerodynamics', 'downforce', 'wind', 'tunnel', 'drag', 'speed',
+          'racing', 'track', 'suspension', 'tire', 'chassis', 'physics', 'velocity', 'motor', 'turbine',
+          'mechanics', 'carbon', 'fiber', 'telemetry', 'lap', 'corner', 'brake'
+        ]
+      },
+      strategy_learning: {
+        label: 'Focus & Strategy',
+        color: '#34d399',
+        terms: [
+          'learn', 'learning', 'study', 'book', 'read', 'reading', 'note', 'notes', 'habit', 'habits',
+          'focus', 'deep', 'work', 'project', 'startup', 'product', 'growth', 'invest', 'finance',
+          'money', 'value', 'compound', 'writing', 'essay', 'clarity', 'thinking', 'system'
+        ]
+      }
+    };
+
+    const TERM_TO_CONCEPTS = {};
+    for (const [domainKey, domainData] of Object.entries(CONCEPT_DOMAINS)) {
+      for (const rawTerm of domainData.terms) {
+        const s = simpleStem(rawTerm);
+        if (!TERM_TO_CONCEPTS[s]) TERM_TO_CONCEPTS[s] = new Set();
+        TERM_TO_CONCEPTS[s].add(domainKey);
+      }
+    }
+
+    function simpleStem(word) {
+      let w = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (w.length <= 3) return w;
+      if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y';
+      if (w.endsWith('ing') && w.length > 5) {
+        w = w.slice(0, -3);
+        if (w.length > 3 && w[w.length - 1] === w[w.length - 2]) w = w.slice(0, -1);
+        return w;
+      }
+      if (w.endsWith('ed') && w.length > 4) {
+        w = w.slice(0, -2);
+        if (w.length > 3 && w[w.length - 1] === w[w.length - 2]) w = w.slice(0, -1);
+        return w;
+      }
+      if (w.endsWith('es') && w.length > 4) return w.slice(0, -2);
+      if (w.endsWith('s') && !w.endsWith('ss') && w.length > 3) return w.slice(0, -1);
+      if (w.endsWith('ly') && w.length > 4) return w.slice(0, -2);
+      if (w.endsWith('ment') && w.length > 6) return w.slice(0, -4);
+      if (w.endsWith('tion') && w.length > 6) return w.slice(0, -4);
+      return w;
+    }
+
+    function extractFeatures(text) {
+      const tokens = text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .split(/\s+/)
+        .filter(t => t.length > 2 && !STOPWORDS.has(t));
+
+      const termFreq = {};
+      const conceptHits = {};
+      const keywords = [];
+
+      for (const tok of tokens) {
+        const stem = simpleStem(tok);
+        if (!stem || STOPWORDS.has(stem)) continue;
+
+        termFreq[stem] = (termFreq[stem] || 0) + 1;
+        if (!keywords.includes(tok)) keywords.push(tok);
+
+        const matchedDomains = TERM_TO_CONCEPTS[stem];
+        if (matchedDomains) {
+          for (const domainKey of matchedDomains) {
+            const conceptToken = `__concept_${domainKey}`;
+            termFreq[conceptToken] = (termFreq[conceptToken] || 0) + 0.75;
+            conceptHits[domainKey] = (conceptHits[domainKey] || 0) + 1;
+          }
+        }
+      }
+
+      let bestDomain = null;
+      let bestScore = 0;
+      for (const [domainKey, score] of Object.entries(conceptHits)) {
+        if (score > bestScore) {
+          bestScore = score;
+          bestDomain = domainKey;
+        }
+      }
+
+      const theme = bestDomain
+        ? CONCEPT_DOMAINS[bestDomain]
+        : { label: 'Spore Thought', color: '#10b981' };
+
+      return {
+        termFreq,
+        keywords: keywords.slice(0, 6),
+        themeLabel: theme.label,
+        themeColor: theme.color
+      };
+    }
+
+    function recomputeSemanticGraph(nodes, threshold) {
+      const N = nodes.length;
+      if (N === 0) return [];
+
+      const docFeatures = nodes.map(n => {
+        const feat = extractFeatures(n.text);
+        n.keywords = feat.keywords;
+        n.themeLabel = feat.themeLabel;
+        n.themeColor = feat.themeColor;
+        return feat.termFreq;
+      });
+
+      const docFreq = {};
+      for (const tf of docFeatures) {
+        for (const term of Object.keys(tf)) {
+          docFreq[term] = (docFreq[term] || 0) + 1;
+        }
+      }
+
+      const vectors = docFeatures.map(tf => {
+        const vec = {};
+        let normSq = 0;
+        for (const [term, count] of Object.entries(tf)) {
+          const idf = Math.log((N + 1.5) / (docFreq[term] + 0.5)) + 0.6;
+          const weight = (1 + Math.log(count)) * idf;
+          vec[term] = weight;
+          normSq += weight * weight;
+        }
+        const norm = Math.sqrt(normSq) || 1;
+        for (const term of Object.keys(vec)) {
+          vec[term] /= norm;
+        }
+        return vec;
+      });
+
+      const candidates = [];
+      for (let i = 0; i < N; i++) {
+        for (let j = i + 1; j < N; j++) {
+          const vA = vectors[i];
+          const vB = vectors[j];
+          let dot = 0;
+          for (const [term, wA] of Object.entries(vA)) {
+            if (vB[term]) {
+              dot += wA * vB[term];
+            }
+          }
+          if (dot >= threshold) {
+            candidates.push({
+              sourceIdx: i,
+              targetIdx: j,
+              source: nodes[i].id,
+              target: nodes[j].id,
+              similarity: Math.min(0.99, dot)
+            });
+          }
+        }
+      }
+
+      candidates.sort((a, b) => b.similarity - a.similarity);
+
+      const normalizedSensitivity = Math.min(1, Math.max(0, (threshold - 0.10) / 0.55));
+      const maxLinksPerNode = Math.max(4, Math.round(8.2 - normalizedSensitivity * 4.2));
+
+      const nodeLinkCounts = new Array(N).fill(0);
+      const links = [];
+
+      for (const cand of candidates) {
+        const { sourceIdx, targetIdx } = cand;
+        if (nodeLinkCounts[sourceIdx] < maxLinksPerNode && nodeLinkCounts[targetIdx] < maxLinksPerNode) {
+          nodeLinkCounts[sourceIdx]++;
+          nodeLinkCounts[targetIdx]++;
+          links.push({
+            source: cand.source,
+            target: cand.target,
+            similarity: cand.similarity,
+            particles: createLinkParticles(cand.similarity)
+          });
+        }
+      }
+
+      return links;
+    }
+
+    function createLinkParticles(similarity) {
+      const count = similarity > 0.55 ? 3 : similarity > 0.32 ? 2 : 1;
+      const particles = [];
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          t: Math.random(),
+          speed: (0.0022 + similarity * 0.0032) * (Math.random() > 0.3 ? 1 : -1),
+          size: 1.6 + similarity * 1.4
+        });
+      }
+      return particles;
+    }
+
+    // ---------------------------------------------------------------------------
+    // 2. SAMPLE STARTER COLONY DATA
+    // ---------------------------------------------------------------------------
+    const STARTER_THOUGHTS = [
+      "Wild yeast sourdough starter needs higher hydration and a longer cold ferment for an open airy crumb",
+      "Dutch oven steam trapping creates that blistered golden crust when baking artisan loaves at home",
+      "Pour-over coffee extraction temperature around 93C brings out floral sweetness without bitterness",
+      "Late night phone screen glare suppresses melatonin and fragments deep REM sleep cycles",
+      "Morning sunlight within twenty minutes of waking anchors circadian rhythm and daytime energy",
+      "Magnesium glycinate and nasal breathing drills lower evening cortisol before bed",
+      "Vector embeddings map sentences into semantic space so related ideas cluster without exact keywords",
+      "Force-directed knowledge graphs turn scattered personal notes into a living second brain",
+      "Local-first browser apps keep personal thoughts private and instant with zero server latency",
+      "Ground-effect underbody venturi tunnels generate massive downforce with minimal aerodynamic drag",
+      "Suspension geometry and tire thermal management decide corner exit traction on technical circuits",
+      "Bioluminescent dark interfaces with emerald filaments and warm gold accents feel organic and calm",
+      "Writing short atomic notes every evening compounds into clear long-form essays over months",
+      "Deliberate deep work blocks without notifications double creative output in half the time"
+    ];
+
+    // ---------------------------------------------------------------------------
+    // 3. APPLICATION STATE & PERSISTENCE
+    // ---------------------------------------------------------------------------
+    const canvas = document.getElementById('colonyCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let viewport = {
+      width: window.innerWidth || 1024,
+      height: window.innerHeight || 768,
+      dpr: Math.min(window.devicePixelRatio || 1, 2)
+    };
+
+    let state = {
+      nodes: [],
+      links: [],
+      threshold: 0.20,
+      bgColor: '#0b100e',
+      selectedNodeId: null,
+      hoveredNodeId: null,
+      draggedNodeId: null,
+      searchQuery: '',
+      ripples: [],
+      camera: { x: 0, y: 0, zoom: 1 },
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      pointerMoved: false,
+      ambientSpores: []
+    };
+
+    function parseHexColor(hex) {
+      const clean = (hex || '#0b100e').replace('#', '');
+      const full = clean.length === 3
+        ? clean.split('').map(c => c + c).join('')
+        : clean.padEnd(6, '0').slice(0, 6);
+      const num = parseInt(full, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return { r, g, b, luminance };
+    }
+
+    function shiftRgb({ r, g, b }, delta) {
+      const clamp = v => Math.max(0, Math.min(255, Math.round(v + delta)));
+      return `rgb(${clamp(r)}, ${clamp(g)}, ${clamp(b)})`;
+    }
+
+    function applyBackgroundColor(hex, shouldSave = true) {
+      const normalized = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toUpperCase() : '#0B100E';
+      state.bgColor = normalized;
+
+      document.documentElement.style.backgroundColor = normalized;
+      document.body.style.backgroundColor = normalized;
+
+      const picker = document.getElementById('bgColorPicker');
+      const label = document.getElementById('bgColorHexLabel');
+      if (picker) picker.value = normalized.toLowerCase();
+      if (label) label.textContent = normalized;
+
+      document.querySelectorAll('.bg-swatch').forEach(btn => {
+        const swatchHex = (btn.getAttribute('data-bg') || '').toUpperCase();
+        if (swatchHex === normalized) {
+          btn.classList.add('ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-black');
+        } else {
+          btn.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-2', 'ring-offset-black');
+        }
+      });
+
+      if (shouldSave) {
+        saveToLocalStorage();
+      }
+    }
+
+    function initAmbientSpores() {
+      state.ambientSpores = [];
+      for (let i = 0; i < 65; i++) {
+        state.ambientSpores.push({
+          x: (Math.random() - 0.5) * 2200,
+          y: (Math.random() - 0.5) * 1600,
+          r: 0.7 + Math.random() * 1.5,
+          vx: (Math.random() - 0.5) * 0.14,
+          vy: (Math.random() - 0.5) * 0.14,
+          alpha: 0.08 + Math.random() * 0.22
+        });
+      }
+    }
+
+    function createNodeObject(text, id, createdAt, x, y, index = 0) {
+      const angle = index * 2.39996;
+      const spread = 70 + Math.sqrt(index + 1) * 42;
+      return {
+        id: id || `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        text: text.trim(),
+        createdAt: createdAt || Date.now(),
+        x: typeof x === 'number' ? x : Math.cos(angle) * spread,
+        y: typeof y === 'number' ? y : Math.sin(angle) * spread,
+        vx: 0,
+        vy: 0,
+        degree: 0,
+        radius: 9,
+        keywords: [],
+        themeLabel: 'Spore Thought',
+        themeColor: '#10b981',
+        pulsePhase: Math.random() * Math.PI * 2
+      };
+    }
+
+    function saveToLocalStorage() {
+      try {
+        const serializable = state.nodes.map(n => ({
+          id: n.id,
+          text: n.text,
+          createdAt: n.createdAt,
+          x: n.x,
+          y: n.y
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          nodes: serializable,
+          threshold: state.threshold,
+          bgColor: state.bgColor
+        }));
+      } catch (err) {
+        console.warn('Could not save to localStorage:', err);
+      }
+    }
+
+    function loadInitialState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed.bgColor === 'string') {
+            applyBackgroundColor(parsed.bgColor, false);
+          } else {
+            applyBackgroundColor('#0B100E', false);
+          }
+
+          if (Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
+            state.threshold = typeof parsed.threshold === 'number' ? parsed.threshold : 0.20;
+            const pct = Math.round(state.threshold * 100);
+            document.getElementById('thresholdSlider').value = pct;
+            document.getElementById('thresholdLabel').textContent = `${pct}%`;
+
+            state.nodes = parsed.nodes.map((n, idx) =>
+              createNodeObject(n.text, n.id, n.createdAt, n.x, n.y, idx)
+            );
+            rebuildGraph(false);
+            return;
+          }
+        } else {
+          applyBackgroundColor('#0B100E', false);
+        }
+      } catch (err) {
+        console.warn('Error loading saved colony:', err);
+        applyBackgroundColor('#0B100E', false);
+      }
+      loadDemoColony(false);
+    }
+
+    function loadDemoColony(notify = true) {
+      const baseTime = Date.now() - STARTER_THOUGHTS.length * 3600 * 1000;
+      state.nodes = STARTER_THOUGHTS.map((text, idx) =>
+        createNodeObject(text, `demo_${idx}_${Date.now()}`, baseTime + idx * 3600 * 1000, null, null, idx)
+      );
+      state.selectedNodeId = null;
+      closeInspector();
+      rebuildGraph(true);
+      if (notify) showToast('Sample colony sprouted with 14 interconnected thoughts');
+    }
+
+    function rebuildGraph(shouldSave = true) {
+      state.links = recomputeSemanticGraph(state.nodes, state.threshold);
+
+      const degreeMap = new Map();
+      for (const n of state.nodes) degreeMap.set(n.id, 0);
+      for (const l of state.links) {
+        degreeMap.set(l.source, (degreeMap.get(l.source) || 0) + 1);
+        degreeMap.set(l.target, (degreeMap.get(l.target) || 0) + 1);
+      }
+
+      let hubCount = 0;
+      for (const n of state.nodes) {
+        const deg = degreeMap.get(n.id) || 0;
+        n.degree = deg;
+        n.radius = Math.min(24, 8 + deg * 2.1);
+        if (deg >= 3) hubCount++;
+      }
+
+      document.getElementById('colonyStats').textContent =
+        `${state.nodes.length} thoughts · ${state.links.length} roots · ${hubCount} hubs`;
+
+      if (state.selectedNodeId) {
+        const stillExists = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (stillExists) {
+          openInspector(stillExists);
+        } else {
+          closeInspector();
+        }
+      }
+
+      if (shouldSave) saveToLocalStorage();
+    }
+
+    function addNewIdea(rawText) {
+      const text = rawText.trim();
+      if (!text) return;
+
+      const worldCenterX = -state.camera.x / state.camera.zoom + (Math.random() - 0.5) * 60;
+      const worldCenterY = -state.camera.y / state.camera.zoom + (Math.random() - 0.5) * 60;
+
+      const newNode = createNodeObject(text, null, Date.now(), worldCenterX, worldCenterY, state.nodes.length);
+      state.nodes.push(newNode);
+      rebuildGraph(true);
+
+      const connectedLinks = state.links.filter(
+        l => l.source === newNode.id || l.target === newNode.id
+      );
+
+      if (connectedLinks.length > 0) {
+        let avgX = 0;
+        let avgY = 0;
+        let count = 0;
+        for (const l of connectedLinks) {
+          const neighborId = l.source === newNode.id ? l.target : l.source;
+          const neighbor = state.nodes.find(n => n.id === neighborId);
+          if (neighbor) {
+            avgX += neighbor.x;
+            avgY += neighbor.y;
+            count++;
+          }
+        }
+        if (count > 0) {
+          newNode.x = avgX / count + (Math.random() - 0.5) * 45;
+          newNode.y = avgY / count + (Math.random() - 0.5) * 45;
+        }
+      }
+
+      state.ripples.push({
+        x: newNode.x,
+        y: newNode.y,
+        radius: newNode.radius,
+        maxRadius: 95,
+        alpha: 0.85
+      });
+
+      state.selectedNodeId = newNode.id;
+      openInspector(newNode);
+
+      if (connectedLinks.length > 0) {
+        showToast(`Sprouted ${connectedLinks.length} semantic root${connectedLinks.length > 1 ? 's' : ''} to past ideas`);
+      } else {
+        showToast('Planted new spore thought (lower sensitivity to connect broadly)');
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 4. ORGANIC FORCE-DIRECTED PHYSICS SIMULATION
+    // ---------------------------------------------------------------------------
+    function stepPhysics() {
+      const nodes = state.nodes;
+      const links = state.links;
+      const N = nodes.length;
+      if (N === 0) return;
+
+      const nodeById = new Map();
+      for (const n of nodes) nodeById.set(n.id, n);
+
+      for (let i = 0; i < N; i++) {
+        const a = nodes[i];
+        a.vx += -a.x * 0.0018;
+        a.vy += -a.y * 0.0018;
+
+        for (let j = i + 1; j < N; j++) {
+          const b = nodes[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let distSq = dx * dx + dy * dy;
+          if (distSq < 1) {
+            dx = (Math.random() - 0.5) * 2;
+            dy = (Math.random() - 0.5) * 2;
+            distSq = 4;
+          }
+          const dist = Math.sqrt(distSq);
+          const minDist = a.radius + b.radius + 42;
+          const repulsion = 2100 / distSq;
+          const overlapPush = dist < minDist ? (minDist - dist) * 0.04 : 0;
+          const force = repulsion + overlapPush;
+
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+
+          a.vx -= fx;
+          a.vy -= fy;
+          b.vx += fx;
+          b.vy += fy;
+        }
+      }
+
+      for (const link of links) {
+        const a = nodeById.get(link.source);
+        const b = nodeById.get(link.target);
+        if (!a || !b) continue;
+
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const idealDist = Math.max(75, 175 - link.similarity * 95);
+        const springK = 0.012 + link.similarity * 0.024;
+        const displacement = dist - idealDist;
+
+        const fx = (dx / dist) * displacement * springK;
+        const fy = (dy / dist) * displacement * springK;
+
+        a.vx += fx;
+        a.vy += fy;
+        b.vx -= fx;
+        b.vy -= fy;
+
+        for (const p of link.particles) {
+          p.t += p.speed;
+          if (p.t > 1) p.t -= 1;
+          if (p.t < 0) p.t += 1;
+        }
+      }
+
+      for (const n of nodes) {
+        n.pulsePhase += 0.03;
+        if (n.id === state.draggedNodeId) {
+          n.vx = 0;
+          n.vy = 0;
+          continue;
+        }
+        n.vx *= 0.84;
+        n.vy *= 0.84;
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+
+      for (let i = state.ripples.length - 1; i >= 0; i--) {
+        const r = state.ripples[i];
+        r.radius += 2.2;
+        r.alpha *= 0.94;
+        if (r.radius >= r.maxRadius || r.alpha < 0.02) {
+          state.ripples.splice(i, 1);
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 5. CANVAS RENDERING (CURVED MYCELIUM ROOTS, ANTS & BIOLUMINESCENT NODES)
+    // ---------------------------------------------------------------------------
+    function computeOrganicControlPoint(a, b) {
+      const mx = (a.x + b.x) * 0.5;
+      const my = (a.y + b.y) * 0.5;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      const hash = ((a.id.charCodeAt(a.id.length - 1) + b.id.charCodeAt(b.id.length - 1)) % 2 === 0 ? 1 : -1);
+      const bow = Math.min(34, len * 0.16) * hash;
+      return {
+        x: mx + nx * bow,
+        y: my + ny * bow
+      };
+    }
+
+    function getQuadraticBezierPoint(t, p0, p1, p2) {
+      const inv = 1 - t;
+      return {
+        x: inv * inv * p0.x + 2 * inv * t * p1.x + t * t * p2.x,
+        y: inv * inv * p0.y + 2 * inv * t * p1.y + t * t * p2.y
+      };
+    }
+
+    function matchesSearch(node) {
+      const q = state.searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        node.text.toLowerCase().includes(q) ||
+        node.themeLabel.toLowerCase().includes(q) ||
+        node.keywords.some(k => k.toLowerCase().includes(q))
+      );
+    }
+
+    function truncateLabel(text, maxLen = 30) {
+      if (text.length <= maxLen) return text;
+      return text.slice(0, maxLen - 1).trim() + '…';
+    }
+
+    function renderCanvas() {
+      ctx.save();
+      ctx.scale(viewport.dpr, viewport.dpr);
+
+      const bgRgb = parseHexColor(state.bgColor);
+      const isLightBg = bgRgb.luminance > 0.58;
+
+      const bgGrad = ctx.createRadialGradient(
+        viewport.width * 0.5,
+        viewport.height * 0.5,
+        40,
+        viewport.width * 0.5,
+        viewport.height * 0.5,
+        Math.max(viewport.width, viewport.height) * 0.78
+      );
+      bgGrad.addColorStop(0, shiftRgb(bgRgb, isLightBg ? 14 : 18));
+      bgGrad.addColorStop(0.55, state.bgColor);
+      bgGrad.addColorStop(1, shiftRgb(bgRgb, -16));
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, viewport.width, viewport.height);
+
+      ctx.translate(viewport.width / 2 + state.camera.x, viewport.height / 2 + state.camera.y);
+      ctx.scale(state.camera.zoom, state.camera.zoom);
+
+      for (const sp of state.ambientSpores) {
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        if (sp.x > 1100) sp.x = -1100;
+        if (sp.x < -1100) sp.x = 1100;
+        if (sp.y > 800) sp.y = -800;
+        if (sp.y < -800) sp.y = 800;
+
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+        ctx.fillStyle = isLightBg
+          ? `rgba(6, 95, 70, ${sp.alpha * 0.85})`
+          : `rgba(16, 185, 129, ${sp.alpha})`;
+        ctx.fill();
+      }
+
+      const nodeById = new Map();
+      for (const n of state.nodes) nodeById.set(n.id, n);
+
+      const activeFocusId = state.hoveredNodeId || state.selectedNodeId;
+      const connectedToFocus = new Set();
+      if (activeFocusId) {
+        connectedToFocus.add(activeFocusId);
+        for (const l of state.links) {
+          if (l.source === activeFocusId) connectedToFocus.add(l.target);
+          if (l.target === activeFocusId) connectedToFocus.add(l.source);
+        }
+      }
+
+      for (const r of state.ripples) {
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(245, 158, 11, ${r.alpha})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      for (const link of state.links) {
+        const a = nodeById.get(link.source);
+        const b = nodeById.get(link.target);
+        if (!a || !b) continue;
+
+        const isHighlighted =
+          activeFocusId &&
+          (link.source === activeFocusId || link.target === activeFocusId);
+
+        const searchDimmed =
+          state.searchQuery.trim() !== '' &&
+          (!matchesSearch(a) && !matchesSearch(b));
+
+        const ctrl = computeOrganicControlPoint(a, b);
+
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(ctrl.x, ctrl.y, b.x, b.y);
+
+        if (isHighlighted) {
+          ctx.strokeStyle = isLightBg
+            ? `rgba(180, 83, 9, ${0.55 + link.similarity * 0.45})`
+            : `rgba(245, 185, 66, ${0.45 + link.similarity * 0.5})`;
+          ctx.lineWidth = 1.6 + link.similarity * 2.4;
+        } else if (searchDimmed) {
+          ctx.strokeStyle = isLightBg ? 'rgba(6, 95, 70, 0.08)' : 'rgba(16, 185, 129, 0.05)';
+          ctx.lineWidth = 0.8;
+        } else {
+          ctx.strokeStyle = isLightBg
+            ? `rgba(5, 120, 87, ${0.22 + link.similarity * 0.45})`
+            : `rgba(16, 185, 129, ${0.16 + link.similarity * 0.44})`;
+          ctx.lineWidth = 0.9 + link.similarity * 1.9;
+        }
+        ctx.stroke();
+
+        if (!searchDimmed) {
+          for (const p of link.particles) {
+            const pt = getQuadraticBezierPoint(p.t, a, ctrl, b);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, isHighlighted ? p.size * 1.35 : p.size, 0, Math.PI * 2);
+            ctx.fillStyle = isHighlighted
+              ? (isLightBg ? 'rgba(217, 119, 6, 0.95)' : 'rgba(253, 224, 71, 0.95)')
+              : (isLightBg ? 'rgba(4, 120, 87, 0.82)' : 'rgba(52, 211, 153, 0.75)');
+            ctx.fill();
+          }
+        }
+      }
+
+      for (const n of state.nodes) {
+        const isSelected = n.id === state.selectedNodeId;
+        const isHovered = n.id === state.hoveredNodeId;
+        const isHub = n.degree >= 3;
+        const isSearchMatch = matchesSearch(n);
+        const isDimmedByFocus = activeFocusId && !connectedToFocus.has(n.id);
+        const isDimmed = !isSearchMatch || isDimmedByFocus;
+
+        const alpha = isDimmed ? 0.22 : 1.0;
+        const pulse = Math.sin(n.pulsePhase) * 1.4;
+        const drawRadius = n.radius + (isHovered || isSelected ? 2.5 : 0);
+
+        if (!isDimmed) {
+          const glowRadius = drawRadius * (isHub ? 2.5 : 1.9) + pulse;
+          const grad = ctx.createRadialGradient(n.x, n.y, drawRadius * 0.2, n.x, n.y, glowRadius);
+          grad.addColorStop(0, isSelected || isHub ? 'rgba(245, 185, 66, 0.35)' : 'rgba(16, 185, 129, 0.28)');
+          grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, glowRadius, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+
+        if (isSelected || isHovered) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, drawRadius + 5, 0, Math.PI * 2);
+          ctx.strokeStyle = isSelected ? 'rgba(251, 191, 36, 0.9)' : 'rgba(52, 211, 153, 0.8)';
+          ctx.lineWidth = 1.75;
+          ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, drawRadius, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? '#f59e0b' : n.themeColor;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(n.x - drawRadius * 0.28, n.y - drawRadius * 0.28, drawRadius * 0.34, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.fill();
+        ctx.restore();
+
+        const showLabel =
+          state.camera.zoom >= 0.72 || isHub || isSelected || isHovered || (state.searchQuery.trim() !== '' && isSearchMatch);
+
+        if (showLabel) {
+          const label = truncateLabel(n.text, isHub || isSelected || isHovered ? 38 : 26);
+          ctx.font = `${isHub || isSelected ? '600' : '500'} 11px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+
+          const textWidth = ctx.measureText(label).width;
+          const labelY = n.y + drawRadius + 6;
+
+          ctx.fillStyle = `rgba(9, 13, 11, ${0.82 * alpha})`;
+          roundRect(ctx, n.x - textWidth / 2 - 6, labelY - 2, textWidth + 12, 17, 6);
+          ctx.fill();
+
+          ctx.fillStyle = isSelected
+            ? `rgba(253, 224, 71, ${alpha})`
+            : `rgba(236, 253, 245, ${0.92 * alpha})`;
+          ctx.fillText(label, n.x, labelY + 1);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function roundRect(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+    }
+
+    // ---------------------------------------------------------------------------
+    // 6. POINTER, TOUCH, PAN, ZOOM & NODE HIT TESTING
+    // ---------------------------------------------------------------------------
+    function screenToWorld(clientX, clientY) {
+      return {
+        x: (clientX - viewport.width / 2 - state.camera.x) / state.camera.zoom,
+        y: (clientY - viewport.height / 2 - state.camera.y) / state.camera.zoom
+      };
+    }
+
+    function findNodeAtWorld(wx, wy) {
+      for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const n = state.nodes[i];
+        const dx = wx - n.x;
+        const dy = wy - n.y;
+        const hitRadius = n.radius + 8;
+        if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+          return n;
+        }
+      }
+      return null;
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      canvas.setPointerCapture(e.pointerId);
+      state.pointerMoved = false;
+      const world = screenToWorld(e.clientX, e.clientY);
+      const hit = findNodeAtWorld(world.x, world.y);
+
+      if (hit) {
+        state.draggedNodeId = hit.id;
+        state.hoveredNodeId = hit.id;
+      } else {
+        state.isPanning = true;
+        state.panStart = {
+          x: e.clientX - state.camera.x,
+          y: e.clientY - state.camera.y
+        };
+      }
+    });
+
+    canvas.addEventListener('pointermove', e => {
+      const world = screenToWorld(e.clientX, e.clientY);
+
+      if (state.draggedNodeId) {
+        state.pointerMoved = true;
+        const node = state.nodes.find(n => n.id === state.draggedNodeId);
+        if (node) {
+          node.x = world.x;
+          node.y = world.y;
+        }
+        return;
+      }
+
+      if (state.isPanning) {
+        state.pointerMoved = true;
+        state.camera.x = e.clientX - state.panStart.x;
+        state.camera.y = e.clientY - state.panStart.y;
+        return;
+      }
+
+      const hit = findNodeAtWorld(world.x, world.y);
+      state.hoveredNodeId = hit ? hit.id : null;
+      canvas.style.cursor = hit ? 'pointer' : 'grab';
+    });
+
+    canvas.addEventListener('pointerup', e => {
+      if (state.draggedNodeId) {
+        if (!state.pointerMoved) {
+          const clicked = state.nodes.find(n => n.id === state.draggedNodeId);
+          if (clicked) {
+            state.selectedNodeId = clicked.id;
+            openInspector(clicked);
+          }
+        } else {
+          saveToLocalStorage();
+        }
+        state.draggedNodeId = null;
+      } else if (state.isPanning) {
+        if (!state.pointerMoved) {
+          state.selectedNodeId = null;
+          closeInspector();
+        }
+        state.isPanning = false;
+      }
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+    });
+
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.09 : 0.91;
+      const newZoom = Math.min(2.6, Math.max(0.35, state.camera.zoom * zoomFactor));
+
+      const mouseX = e.clientX - viewport.width / 2;
+      const mouseY = e.clientY - viewport.height / 2;
+      state.camera.x = mouseX - ((mouseX - state.camera.x) / state.camera.zoom) * newZoom;
+      state.camera.y = mouseY - ((mouseY - state.camera.y) / state.camera.zoom) * newZoom;
+      state.camera.zoom = newZoom;
+    }, { passive: false });
+
+    // ---------------------------------------------------------------------------
+    // 7. INSPECTOR DRAWER & UI CONTROLS
+    // ---------------------------------------------------------------------------
+    function formatRelativeTime(timestamp) {
+      const diffSec = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
+      if (diffSec < 60) return 'Planted just now';
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `Planted ${diffMin}m ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `Planted ${diffHr}h ago`;
+      const diffDay = Math.floor(diffHr / 24);
+      return `Planted ${diffDay}d ago`;
+    }
+
+    function openInspector(node) {
+      const drawer = document.getElementById('inspectorDrawer');
+      drawer.classList.remove('hidden');
+
+      document.getElementById('inspectorThemeBadge').textContent = node.themeLabel;
+      document.getElementById('inspectorRoleBadge').textContent =
+        node.degree >= 3 ? `Queen Hub (${node.degree})` : `Spore (${node.degree})`;
+      document.getElementById('inspectorTimestamp').textContent = formatRelativeTime(node.createdAt);
+      document.getElementById('inspectorText').textContent = node.text;
+
+      const neighbors = [];
+      for (const l of state.links) {
+        if (l.source === node.id || l.target === node.id) {
+          const otherId = l.source === node.id ? l.target : l.source;
+          const otherNode = state.nodes.find(n => n.id === otherId);
+          if (otherNode) {
+            neighbors.push({ node: otherNode, similarity: l.similarity });
+          }
+        }
+      }
+      neighbors.sort((a, b) => b.similarity - a.similarity);
+
+      document.getElementById('inspectorConnCount').textContent = neighbors.length;
+      const listEl = document.getElementById('inspectorConnections');
+      listEl.innerHTML = '';
+
+      if (neighbors.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'text-xs text-slate-400 italic py-2';
+        empty.textContent = 'No roots connected yet. Add related notes or lower sensitivity.';
+        listEl.appendChild(empty);
+      } else {
+        for (const item of neighbors) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className =
+            'w-full text-left p-2.5 rounded-xl bg-black/40 hover:bg-emerald-950/60 border border-emerald-500/15 hover:border-emerald-400/40 transition flex items-start justify-between gap-2';
+
+          const textSpan = document.createElement('span');
+          textSpan.className = 'text-xs text-slate-200 line-clamp-2 leading-snug';
+          textSpan.textContent = item.node.text;
+
+          const scoreBadge = document.createElement('span');
+          scoreBadge.className =
+            'font-mono-code text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 shrink-0';
+          scoreBadge.textContent = `${Math.round(item.similarity * 100)}%`;
+
+          btn.appendChild(textSpan);
+          btn.appendChild(scoreBadge);
+
+          btn.addEventListener('click', () => {
+            state.selectedNodeId = item.node.id;
+            openInspector(item.node);
+          });
+
+          listEl.appendChild(btn);
+        }
+      }
+    }
+
+    function closeInspector() {
+      document.getElementById('inspectorDrawer').classList.add('hidden');
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+      const banner = document.getElementById('toastBanner');
+      const text = document.getElementById('toastText');
+      text.textContent = message;
+      banner.classList.remove('opacity-0');
+      banner.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        banner.classList.remove('opacity-100');
+        banner.classList.add('opacity-0');
+      }, 2800);
+    }
+
+    // Form submission for adding new random ideas
+    document.getElementById('ideaForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('ideaInput');
+      if (!input.value.trim()) return;
+      addNewIdea(input.value);
+      input.value = '';
+    });
+
+    // Root Sensitivity Slider
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    thresholdSlider.addEventListener('input', e => {
+      const val = Number(e.target.value);
+      document.getElementById('thresholdLabel').textContent = `${val}%`;
+      state.threshold = val / 100;
+      rebuildGraph(true);
+    });
+
+    // Background Color Swatches & Custom Picker
+    document.querySelectorAll('.bg-swatch').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hex = btn.getAttribute('data-bg');
+        if (hex) applyBackgroundColor(hex, true);
+      });
+    });
+
+    const bgColorPicker = document.getElementById('bgColorPicker');
+    bgColorPicker.addEventListener('input', e => {
+      applyBackgroundColor(e.target.value, true);
+    });
+
+    // Search Filter
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    searchInput.addEventListener('input', e => {
+      state.searchQuery = e.target.value;
+      clearSearchBtn.classList.toggle('hidden', state.searchQuery.trim() === '');
+    });
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      state.searchQuery = '';
+      clearSearchBtn.classList.add('hidden');
+    });
+
+    // Top-Right Settings Dropdown Toggle, Outside-Click & Escape Dismissal
+    const settingsContainer = document.getElementById('settingsContainer');
+    const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    const settingsGearIcon = document.getElementById('settingsGearIcon');
+
+    function setSettingsOpen(isOpen) {
+      settingsDropdown.classList.toggle('hidden', !isOpen);
+      settingsToggleBtn.setAttribute('aria-expanded', String(isOpen));
+      settingsGearIcon.style.transform = isOpen ? 'rotate(60deg)' : 'rotate(0deg)';
+    }
+
+    settingsToggleBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const willOpen = settingsDropdown.classList.contains('hidden');
+      setSettingsOpen(willOpen);
+    });
+
+    document.addEventListener('pointerdown', e => {
+      if (!settingsDropdown.classList.contains('hidden') && !settingsContainer.contains(e.target)) {
+        setSettingsOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !settingsDropdown.classList.contains('hidden')) {
+        setSettingsOpen(false);
+      }
+    });
+
+    // Inspector Close & Prune
+    document.getElementById('closeInspectorBtn').addEventListener('click', () => {
+      state.selectedNodeId = null;
+      closeInspector();
+    });
+
+    document.getElementById('deleteNodeBtn').addEventListener('click', () => {
+      if (!state.selectedNodeId) return;
+      state.nodes = state.nodes.filter(n => n.id !== state.selectedNodeId);
+      state.selectedNodeId = null;
+      closeInspector();
+      rebuildGraph(true);
+      showToast('Thought pruned from colony');
+    });
+
+    // ---------------------------------------------------------------------------
+    // 8. RESPONSIVE RESIZING & ANIMATION LOOP
+    // ---------------------------------------------------------------------------
+    function resizeCanvas() {
+      viewport.width = window.innerWidth || document.documentElement.clientWidth || 1024;
+      viewport.height = window.innerHeight || document.documentElement.clientHeight || 768;
+      viewport.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.floor(viewport.width * viewport.dpr);
+      canvas.height = Math.floor(viewport.height * viewport.dpr);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function animateLoop() {
+      stepPhysics();
+      renderCanvas();
+      requestAnimationFrame(animateLoop);
+    }
+
+    window.onload = function () {
+      resizeCanvas();
+      initAmbientSpores();
+      loadInitialState();
+      animateLoop();
+    };
+  </script>
+</body>
+</html>
